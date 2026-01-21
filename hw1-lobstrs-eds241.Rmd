@@ -31,13 +31,13 @@ knitr::opts_chunk$set(eval=FALSE, warning = FALSE, message = FALSE )
 -  Your knitted presentation should meet the quality you'd submit to research colleagues or feel confident sharing publicly. Refer to the rubric for details about presentation standards.
 
 
-**Assignment submission (YOUR NAME):** ______________________________________
+**Assignment submission Richard Montes Lemus:** ______________________________________
 
 
 ----------------------------------------------------------------------
 
 ```{r}
-
+# Load in libraries
 library(tidyverse)
 library(here)
 library(janitor)
@@ -77,6 +77,7 @@ Let’s break it down step by step and see what the data reveals! 📊
 
 **a.** Do the control sites (Arroyo Quemado, Carpenteria, and Mohawk) provide a strong counterfactual for our treatment sites (Naples, Isla Vista)? Write a paragraph making a case for why this comparison is ceteris paribus or whether selection bias is likely (be specific!).  
 
+I do not think the control sites provide a strong counterfactual for our treatment sites. While all of these sites are relatively close there are some major differences that might cause selection bias. For example, Mohawk and Carp. are located in very urban areas. IV and Naples are relatively less urban and either right next to undeveloped land or located in undeveloped land. This could mean California spiny lobsters are less common in Mohawk and Carp. because of pollution - not necessarily because they lack an MPA designation. Including AQ in the control group does balance this out more since it is located in undeveloped land, but I don't think it should be used to offset the effect of pollution in the urban sites. It would be better to just choose three sites for the control group that are as close as possible to Naples and IV. 
 ------------------------------------------------------------------------
 
 #### Step 2: Read & wrangle data
@@ -87,8 +88,9 @@ Let’s break it down step by step and see what the data reveals! 📊
 
 ```{r}
 # HINT: check for coding of missing values (`na = "-99999"`)
-
-rawdata <- 
+# Turn column names into snake_case and replace -99999 with na
+rawdata <- read_csv(here("data", "spiny_abundance_sb_18.csv"), na = "-99999") %>% 
+    clean_names()
 
 ```
 
@@ -97,14 +99,22 @@ rawdata <-
     "Arroyo Quemado", "Carpenteria", "Mohawk", "Isla Vista",  "Naples"
 
 ```{r}
-
-tidydata <- 
+# Use refactoring to match complete site name to abbreviation and to order site names for plotting 
+tidydata <- rawdata %>%
+    mutate(reef = factor(site, levels = c("AQUE", "CARP", "MOHK","IVEE", "NAPL"), 
+labels = c("Arroyo Quemado", "Carpenteria", "Mohawk", "Isla Vista",  "Naples"
+)))
     
 ```
 
 Create new `df` named `spiny_counts` 
 
 **d.** Create a new variable `counts` to allow for an analysis of lobster counts where the unit-level of observation is the total number of observed lobsters per `site`, `year` and `transect`. 
+```{r}
+spiny_counts <- tidydata %>% 
+    group_by(site, year, transect, reef) %>% 
+    summarise(counts = sum(count, na.rm = TRUE), mean_size = mean(size_mm, na.rm = TRUE)) %>% ungroup()
+```
 
 - Create a variable `mean_size` from the variable `size_mm`
 - NOTE: The variable `counts` should have values which are integers (whole numbers). 
@@ -117,8 +127,20 @@ Create new `df` named `spiny_counts`
 
 #HINT(e): Use `case_when()` to create the 3 new variable columns
 
-spiny_counts <- 
-
+spiny_counts <- spiny_counts %>% 
+    mutate(
+        mpa = case_when(
+            site == "AQUE" ~ "non_MPA",
+            site == "CARP" ~ "non_MPA",
+            site == "IVEE" ~ "MPA",
+            site == "MOHK" ~ "non_MPA",
+            site == "NAPL" ~ "MPA"
+    ), 
+        mpa = factor(mpa, levels = c("non_MPA", "MPA")),
+        treat = case_when(
+            mpa == "MPA" ~ 1,
+            mpa == "non_MPA" ~ 0
+        ))
 ```
 
 > NOTE: This step is crucial to the analysis. Check with a friend or come to TA/instructor office hours to make sure the counts are coded correctly!
@@ -140,9 +162,56 @@ spiny_counts <-
 
 Create plots displaying the distribution of lobster **counts**:
 
-1) grouped by reef site  
+1) grouped by reef site 
+
+```{r}
+spiny_counts %>% 
+    ggplot(aes(x = counts, y = reef)) + 
+    geom_violin() + 
+    stat_summary(fun = mean, geom = "point", color = "red", size = 2) +
+    labs(title = "Distribution of Lobster Counts by Reef Site in Santa Barbara, CA",
+         subtitle = "Red point = mean",
+         x = "Number of Lobsters Observed",
+         y = "Site")
+```
+
 2) grouped by MPA status
+```{r}
+
+spiny_counts %>% 
+    ggplot(aes(x = counts, fill = mpa)) + 
+    geom_density(alpha = 0.2) + 
+    geom_vline(data = spiny_counts %>% 
+                   group_by(mpa) %>% 
+                   summarize(median_counts = median(counts)),
+               aes(xintercept = median_counts, color = mpa),
+               linetype = "dashed", linewidth = 1) +
+    scale_fill_manual(values = c("red", "blue")) + 
+    scale_color_manual(values = c("red", "blue")) +
+    labs(title = "Distribution of Lobster Counts by MPA Status in Santa Barbara, CA",
+         subtitle = "Dashed lines show median",
+         x = "Number of Lobsters Observed",
+         y = "Density",
+         fill = "MPA Status",
+         color = "MPA Status")
+```
+
 3) grouped by year
+```{r}
+
+spiny_counts %>% 
+    ggplot(aes(x = counts, y = factor(year), fill = after_stat(x))) + 
+    ggridges::geom_density_ridges_gradient(rel_min_height = 0, 
+                                           scale = 3,
+                                           quantile_lines = TRUE,
+        quantiles = 2 ) + 
+      scale_fill_gradientn(colors = c("#849BB4", "#D9E7EC", "#EF8080", "#8B3A3A", "darkred")) + 
+    labs(title = "Distribution of Lobster Counts by Year in Santa Barbara, CA",
+         x = "Number of Lobsters Observed",
+         y = "Year",
+         fill = "Count")
+```
+
 
 Create a plot of lobster **size** :
 
@@ -150,16 +219,25 @@ Create a plot of lobster **size** :
 
 ```{r}
 # plot 1: ....
-
 spiny_counts %>% 
-ggplot()
-    
+    ggplot(aes(x = mean_size, y = reef, fill = after_stat(x))) + 
+    ggridges::geom_density_ridges_gradient(rel_min_height = 0, 
+                                           scale = 3,
+                                           quantile_lines = TRUE,
+        quantiles = 2 ) + 
+      scale_fill_gradientn(colors = c("cornflowerblue","#849BB4", "#D9E7EC", "#EF8080", "#8B3A3A")) + 
+    labs(title = "Distribution of Lobster Size by Site Reef in Santa Barbara, CA",
+         x = "Lobster Size (mm)",
+         y = "Site",
+         fill = "Size (mm)")
 ```
 
 **c.** Compare means of the outcome by treatment group. Using the `tbl_summary()` function from the package [`gt_summary`](https://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html) 
 
 ```{r}
 # USE: gt_summary::tbl_summary()
+spiny_counts %>% 
+    tbl_summary(by = mpa, include = c(counts, mean_size),statistic = list(all_continuous() ~ "{mean} ({sd})"))
 ```
 
 ------------------------------------------------------------------------
@@ -170,10 +248,14 @@ ggplot()
 
 **b.** Interpret the intercept & predictor coefficients *in your own words*. Use full sentences and write your interpretation of the regression results to be as clear as possible to a non-academic audience.
 
+Intercept: Without an MPA designation, we expect the lobster count to be 22.73 on average per transect. 
+
+Coefficient: Giving a site an MPA designation increased the average lobster count by approximately 5.36 per transect. 
+
 ```{r}
 # NOTE: We will not evaluate/interpret model fit in this assignment (e.g., R-square)
 
-m1_ols <- 
+m1_ols <- lm(counts ~ mpa, data = spiny_counts)
 
 summ(m1_ols, model.fit = FALSE) 
 
@@ -182,6 +264,8 @@ summ(m1_ols, model.fit = FALSE)
 **c.** Check the model assumptions using the `check_model` function from the `performance` package
 
 **d.** Explain the results of the 4 diagnostic plots. Why are we getting this result?
+
+The four diagnostic plots show we did not use the correct model for this analysis. Our quantile quantile plot shows residuals did not fall along the line and therefore our data does not follow a normal distribution. The second check also shows residuals do not follow a normal distribution. The third plot shows that the standard deviation of residuals varies based on lobster count predicted - is it not constant. And the fourth plot shows lobster counts predicted by the model do not match the same concentration as the observed lobster data. We are getting these results because an OLS model is not the right model for our data, the misalignments we see from theese checks show there are many violations to the OLS model's assumptions. An OLS model assumes the outcome variable is continuous and can take any value from negative infinity to positive infinity, with residuals that are normally distributed and have constant variance. This is not the case for our outcome variable, we have discrete count data, it has to to be positive, and we don't have a normal distribution for residuals or constant variance. We should explore a different model. 
 
 ```{r}
 check_model(m1_ols,  check = "qq" )
@@ -210,6 +294,14 @@ check_model(m1_ols, check = "pp_check")
 
 **b.** Interpret the predictor coefficient in your own words. Use full sentences and write your interpretation of the results to be as clear as possible to a non-academic audience.
 
+Intercept: On average, the model estimates our control group to have 3.12 lobster counts. 
+
+Coefficient: The model estimates that the MPA designation increased lobster counts by 23.36% in transects within MPAs. 
+
+Calculation: 
+((exp(0.21) - 1)*100) = 23.36% 
+
+
 **c.** Explain the statistical concept of dispersion and overdispersion in the context of this model. 
 
 **d.** Compare results with previous model, explain change in the significance of the treatment effect
@@ -219,9 +311,12 @@ check_model(m1_ols, check = "pp_check")
 
 #HINT2: For the second glm() argument `family` use the following specification option `family = poisson(link = "log")`
 
-m2_pois <- 
+m2_pois <- glm(counts ~ mpa, family = poisson(link = "log"), data = spiny_counts)
+
+summ(m2_pois, model.fit = FALSE) 
 
 ```
+
 
 **e.** Check the model assumptions. Explain results.
 
@@ -241,7 +336,7 @@ check_zeroinflation(m2_pois)
 
 **g.** Fit a negative binomial model using the function glm.nb() from the package `MASS` and check model diagnostics 
 
-**h.** In 1-2 sentences explain rationale for fitting this GLM model.
+**h.** In 1-2 sentences explain rationale for fitting this GLM model. 
 
 **i.** Interpret the treatment estimate result in your own words. Compare with results from the previous model.
 
