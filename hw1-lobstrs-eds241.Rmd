@@ -1,15 +1,17 @@
 ---
 title: "Assignment 1"
-subtitle: "California Spiny Lobster (*Panulirus Interruptus*): Assessing the Impact of Marine Protected Areas (MPAs) at 5 Reef Sites in Santa Barbara County" 
-author: "EDS 241 / ESM 244 (**Due: 1/17**)"
+author: 'EDS 241 / ESM 244 (**Due: 1/17**)'
 date: "1/8/26"
-output: 
-    html_document:
-      theme: flatly
+output:
+  pdf_document: default
+  html_document:
+    theme: flatly
+subtitle: 'California Spiny Lobster (*Panulirus Interruptus*): Assessing the Impact
+  of Marine Protected Areas (MPAs) at 5 Reef Sites in Santa Barbara County'
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(eval=FALSE, warning = FALSE, message = FALSE )
+knitr::opts_chunk$set(eval=TRUE, warning = FALSE, message = FALSE )
 ```
 
 ------------------------------------------------------------------------
@@ -60,13 +62,13 @@ library(interactions)
 
 ### **Introduction**
 
-You're about to dive into some deep data collected from five reef sites in Santa Barbara County, all about the abundance of California spiny lobsters! 🦞 Data was gathered by divers annually from 2012 to 2018 across Naples, Mohawk, Isla Vista, Carpinteria, and Arroyo Quemado reefs.
+You're about to dive into some deep data collected from five reef sites in Santa Barbara County, all about the abundance of California spiny lobsters! Data was gathered by divers annually from 2012 to 2018 across Naples, Mohawk, Isla Vista, Carpinteria, and Arroyo Quemado reefs.
 
 Why lobsters? Well, this sample provides an opportunity to evaluate the impact of Marine Protected Areas (MPAs) established on January 1, 2012 (Reed, 2019). Of these five reefs, Naples, and Isla Vista are MPAs, while the other three are not protected (non-MPAs). Comparing lobster health between these protected and non-protected areas gives us the chance to study how commercial and recreational fishing might impact these ecosystems.
 
 We will consider the MPA sites the `treatment` group and use regression methods to explore whether protecting these reefs really makes a difference compared to non-MPA sites (our control group). In this assignment, we’ll think deeply about which causal inference assumptions hold up under the research design and identify where they fall short. 
 
-Let’s break it down step by step and see what the data reveals! 📊
+Let’s break it down step by step and see what the data reveals!
 
 ![](figures/map-5reefs.png)
 
@@ -77,10 +79,11 @@ Let’s break it down step by step and see what the data reveals! 📊
 
 **a.** Do the control sites (Arroyo Quemado, Carpenteria, and Mohawk) provide a strong counterfactual for our treatment sites (Naples, Isla Vista)? Write a paragraph making a case for why this comparison is ceteris paribus or whether selection bias is likely (be specific!).  
 
-I do not think the control sites provide a strong counterfactual for our treatment sites. While all of these sites are relatively close there are some major differences that might cause selection bias. For example, Mohawk and Carp. are located in very urban areas. IV and Naples are relatively less urban and either right next to undeveloped land or located in undeveloped land. This could mean California spiny lobsters are less common in Mohawk and Carp. because of pollution - not necessarily because they lack an MPA designation. Including AQ in the control group does balance this out more since it is located in undeveloped land, but I don't think it should be used to offset the effect of pollution in the urban sites. It would be better to just choose three sites for the control group that are as close as possible to Naples and IV. 
+I do not think the control sites provide a strong counterfactual for our treatment sites. While all of these sites are relatively close, there are some major differences that might cause selection bias. For example, Mohawk and Carp are located in very urban areas. IV and Naples are relatively less urban and are either right next to undeveloped land or located in undeveloped land. This could mean California spiny lobsters are less common in Mohawk and Carp because of run off pollution from urbanized areas - not necessarily because they lack an MPA designation. Including AQ in the control group does balance this out more since it is located in undeveloped land that likely has little run off, but I don't think it should be used to offset the effect of pollution in the urban sites. It would be better to just choose three sites for the control group that are equally as close as possible to Naples and IV. 
 ------------------------------------------------------------------------
 
 #### Step 2: Read & wrangle data
+
 
 **a.** Read in the raw data from the "data" folder named `spiny_abundance_sb_18.csv`. Name the data.frame `rawdata`
 
@@ -234,7 +237,7 @@ spiny_counts %>%
 
 **c.** Compare means of the outcome by treatment group. Using the `tbl_summary()` function from the package [`gt_summary`](https://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html) 
 
-```{r}
+```{r, results='hold'}
 # USE: gt_summary::tbl_summary()
 spiny_counts %>% 
     tbl_summary(by = mpa, include = c(counts, mean_size),statistic = list(all_continuous() ~ "{mean} ({sd})"))
@@ -244,13 +247,20 @@ spiny_counts %>%
 
 #### Step 4: OLS regression- building intuition
 
+
 **a.** Start with a simple OLS estimator of lobster counts regressed on treatment. Use the function `summ()` from the [`jtools`](https://jtools.jacob-long.com/) package to print the OLS output
 
 **b.** Interpret the intercept & predictor coefficients *in your own words*. Use full sentences and write your interpretation of the regression results to be as clear as possible to a non-academic audience.
 
 Intercept: Without an MPA designation, we expect the lobster count to be 22.73 on average per transect. 
 
-Coefficient: Giving a site an MPA designation increased the average lobster count by approximately 5.36 per transect. 
+Treatment Coefficient: Giving a site an MPA designation increased the average lobster count by approximately 5.36 per transect. 
+
+
+Percent change calculation: 
+
+(5.36 / 22.73) * 100 = 23.58% 
+
 
 ```{r}
 # NOTE: We will not evaluate/interpret model fit in this assignment (e.g., R-square)
@@ -265,7 +275,7 @@ summ(m1_ols, model.fit = FALSE)
 
 **d.** Explain the results of the 4 diagnostic plots. Why are we getting this result?
 
-The four diagnostic plots show we did not use the correct model for this analysis. Our quantile quantile plot shows residuals did not fall along the line and therefore our data does not follow a normal distribution. The second check also shows residuals do not follow a normal distribution. The third plot shows that the standard deviation of residuals varies based on lobster count predicted - is it not constant. And the fourth plot shows lobster counts predicted by the model do not match the same concentration as the observed lobster data. We are getting these results because an OLS model is not the right model for our data, the misalignments we see from theese checks show there are many violations to the OLS model's assumptions. An OLS model assumes the outcome variable is continuous and can take any value from negative infinity to positive infinity, with residuals that are normally distributed and have constant variance. This is not the case for our outcome variable, we have discrete count data, it has to to be positive, and we don't have a normal distribution for residuals or constant variance. We should explore a different model. 
+The four diagnostic plots show we did not use the correct model for this analysis. Our quantile quantile plot shows residuals did not fall along the line and therefore our data does not follow a normal distribution. The second plot also shows residuals do not follow a normal distribution. The homogeneity of variance plot shows that the standard deviation of residuals varies based on lobster count predicted - is it not constant. And the posterior predictive check plot shows lobster counts predicted by the model do not match the same concentration as the observed lobster data. We are getting these results because an OLS model is not the right model for our data, the misalignments we see from these checks show there are many violations to the OLS model's assumptions. An OLS model assumes the outcome variable is continuous and can take any value from negative infinity to positive infinity, with residuals that are normally distributed and have constant variance. This is not the case for our outcome variable, we have discrete count data, it has to to be positive, and we don't have a normal distribution for residuals or constant variance. We should explore a different model. 
 
 ```{r}
 check_model(m1_ols,  check = "qq" )
@@ -290,21 +300,35 @@ check_model(m1_ols, check = "pp_check")
 
 #### Step 5: Fitting GLMs
 
+
 **a.** Estimate a Poisson regression model using the `glm()` function
 
 **b.** Interpret the predictor coefficient in your own words. Use full sentences and write your interpretation of the results to be as clear as possible to a non-academic audience.
 
-Intercept: On average, the model estimates our control group to have 3.12 lobster counts. 
+Intercept: On average, the model estimates that transects in non-MPA areas have approximately 22.6 lobsters. 
 
-Coefficient: The model estimates that the MPA designation increased lobster counts by 23.36% in transects within MPAs. 
+Treatment Coefficient: The model estimates that the MPA designation increased lobster counts by 23.36% in transects within MPAs. 
 
 Calculation: 
+
+Intercept:
+(exp(3.12))
+
+Treatment Coefficient:
 ((exp(0.21) - 1)*100) = 23.36% 
 
 
 **c.** Explain the statistical concept of dispersion and overdispersion in the context of this model. 
 
+Dispersion refers to a ratio between the variance in our model and mean. If this ratio is equal to 1, this signals good model fit. For example, we would receive a dispersion ratio of 1 for this study if the average lobster count was 25 and the variance was also 25.
+
+Overdispersion refers to an instance in which variance is greater than the mean, so the ratio between them is greater than 1. This signals bad model fit. We might expect that for this study since there is high variability between lobster transects. They are not distributed evenly and randomly, lobster populations tend to cluster around sites with optimal conditions. Therefore, high variance in lobster abundance between transects is expected. 
+
 **d.** Compare results with previous model, explain change in the significance of the treatment effect
+
+The OLS model estimated a similar intercept (22.73 count vs 22.6 count) for the control group and a similar coefficient (23.58% vs 23.36%) for the treatment when compared to the poisson model. 
+
+The significance of the treatment effect was not significant for the OLS model, but it was significant for the poisson model. 
 
 ```{r}
 #HINT1: Incidence Ratio Rate (IRR): Exponentiation of beta returns coefficient which is interpreted as the 'percent change' for a one unit increase in the predictor 
@@ -320,7 +344,22 @@ summ(m2_pois, model.fit = FALSE)
 
 **e.** Check the model assumptions. Explain results.
 
+The posterior predictive check plot shows the predicted outcomes from the model do not match the observed outcomes well. 
+ 
+The misspecified dispersion and zero inflation plot shows the observed residual variance line to be much higher than the predicted residual variance line. This may indicate there is overdispersion. 
+
+The influential observations test plot shows there aren't any significant outliers for our residuals since they are within the contour lines. 
+
+The distribution of quantile residuals show they do not fall along the line, this may indicate overdispersion. 
+
+These model checks demonstrate a poisson model is also not the right model to predict lobster count outcomes given an MPA status. 
+
 **f.** Conduct tests for over-dispersion & zero-inflation. Explain results.
+
+The overdispersion check showed an extremely high dispersion ratio. This indicates there is overdispersion. 
+
+The zero inflation test indicated the model is not accounting for the variance coming from having so many zeros in our lobster count data set. We know this because the test shows we have a lot more zeros in our observed data than in what our model is able to predict. This signals there is zero inflation and our model can't account for the variance due to zeros. This causes our model to falsely gives us statistical significance and generally hinders our model's predictive ability. 
+
 
 ```{r}
 check_model(m2_pois)
@@ -336,9 +375,24 @@ check_zeroinflation(m2_pois)
 
 **g.** Fit a negative binomial model using the function glm.nb() from the package `MASS` and check model diagnostics 
 
+
 **h.** In 1-2 sentences explain rationale for fitting this GLM model. 
 
+I wanted to fit this GLM model because it includes a dispersion parameter to account for overdispersion and because it is more flexible than a poisson regression. 
+
 **i.** Interpret the treatment estimate result in your own words. Compare with results from the previous model.
+
+Treatment Coefficient: The model estimates that the MPA designation increased lobster counts by 23.36% in transects within MPAs. 
+
+Calculation: 
+
+Treatment Coefficient: :
+((exp(0.21) - 1)*100) = 23.36% 
+
+Comparison between negative binomial and poisson model treatment coefficients: 
+
+Both of these models have the same treatment coefficient, however, the negative binomial model has a p value of 0.22 while the poisson model has a p value of 0.00. This is because the poisson model did not account for zero inflation so it falsely gave statistical significance to the poisson model's treatment coefficient. 
+
 
 ```{r}
 library(MASS) ## NOTE: The `select()` function is masked. Use: `dplyr::select()` ##
@@ -348,8 +402,9 @@ library(MASS) ## NOTE: The `select()` function is masked. Use: `dplyr::select()`
 
 # NOTE: The `glm.nb()` function does not require a `family` argument
 
-m3_nb <- 
+m3_nb <- glm.nb(counts ~ mpa, data = spiny_counts)
 
+summ(m3_nb, model.fit = FALSE) 
 ```
 
 
@@ -378,13 +433,22 @@ check_model(m3_nb)
 
 **c.** Write a short paragraph comparing the results. Is the treatment effect `robust` or stable across the model specifications. 
 
+Across all three models, the treatment effect is stable. MPAs are consistently associated with ~ 23%  average increase in lobster count. The treatment effect's statistical significance, however, is not robust. It is statistically significant in the poisson model due to zero inflation and not statistically significant in the OLS and negative binomial model. 
+
 ```{r}
 
-export_summs(# ADD MODELS
+export_summs(m1_ols, m2_pois, m3_nb,
              model.names = c("OLS","Poisson", "NB"),
              statistics = "none")
-
 ```
+
+
+```{r}
+# m1_change = (5.36 / 22.73) * 100 # Change in OLS  23.58%
+# m2_change = ((exp(0.21) - 1)*100) # Change in POIS 23.36% 
+# m3_change = ((exp(0.21) - 1)*100) = # Change in Neg Bi 23.36%
+```
+
 
 ------------------------------------------------------------------------
 
@@ -399,7 +463,11 @@ export_summs(# ADD MODELS
 
 **c.** Take a look at the regression output. Each coefficient provides a comparison or the difference in means for a specific sub-group in the data. Informally, describe the what the model has estimated at a conceptual level (NOTE: you do not have to interpret coefficients individually)
 
+The model has estimated the impact of an MPA designation per year, allowing the model to capture the changing impact of an MPA designation on lobster counts over time. All interaction terms between the treatment and year are positive and statistically significant. This indicates the MPA's effect on higher lobster counts increased over time since MPAs are increasingly associated with higher lobster counts as years progress. 
+
 **d.** Explain why the main effect for treatment is negative? *Does this result make sense?
+
+The main effect for the treatment is negative because this coefficient corresponds to the reference year of 2012, when the MPAs were first established. It is not surprising that MPAs had lower lobster abundance initially because these sites may have been chosen specifically as new MPAs because they were depleted and needed recovery. Furthermore, the effect of an MPA takes time, the lobster counts in these MPAs do not accurately reflect the impact of an MPA designation yet in 2012. 
 
 ```{r}
 
@@ -423,7 +491,7 @@ summ(m5_fixedeffs, model.fit = FALSE)
 ```{r}
 
 interact_plot(m5_fixedeffs, pred = year, modx = treat,
-              outcome.scale = "link") # NOTE: y-axis on log-scale
+              outcome.scale = "response") # NOTE: y-axis on log-scale
 
 # HINT: Change `outcome.scale` to "response" to convert y-axis scale to counts
 ```
@@ -440,9 +508,24 @@ The plot should have...
 # Hint 1: Group counts by `year` and `mpa` and calculate the `mean_count`
 # Hint 2: Convert variable `year` to a factor
 
-plot_counts <- 
+plot_counts <- spiny_counts %>% 
+    group_by(year, mpa) %>% 
+    summarise(mean_count = mean(counts)) %>% 
+    ungroup() %>% 
+    mutate(year=as_factor(year))
 
-# plot_counts %>% ggplot() ...
+
+plot_counts %>% 
+    ggplot(aes(x = year, y = mean_count,
+               color = mpa, 
+               group = mpa)) + 
+    geom_line() + 
+    geom_point() + 
+    labs(x = "Year",
+         y = "Mean Lobster Count",
+         color = "MPA Status",
+         title = "Lobster Counts Over Time Based on MPA Status") +
+    theme_classic()
 ```
 
 ------------------------------------------------------------------------
@@ -450,12 +533,32 @@ plot_counts <-
 #### Step 8: Reconsider causal identification assumptions
 
 a. Discuss whether you think `spillover effects` are likely in this research context (see Glossary of terms; https://docs.google.com/document/d/1RIudsVcYhWGpqC-Uftk9UTz3PIq6stVyEpT44EPNgpE/edit?usp=sharing)
+
+I definitely think "spillover effects" are likely in this research. There is no physical barrier between these MPA and non-MPA zones so the increase in lobster abundance in MPAs could likely produce more wandering lobsters that end up in non-MPA zones. 
+
 b. Explain why spillover is an issue for the identification of causal effects
+
+This is an issue for the identification of causal effects because it reduced the difference between the non-MPA group and MPA group means. This means we underestimated the true effect of an MPA designation on lobster abundance. We cant isolate the impact of an MPA designation on lobster abundance because our control (non-MPA designation) is impacted by the MPA designation as well. 
+
 c. How does spillover relate to impact in this research setting?
+
+Spillover makes it harder to estimate the true effect of an MPA designation on lobster abundance. Furthermore, it causes us to underestimate the true impact of an MPA designation. 
+
 d. Discuss the following causal inference assumptions in the context of the MPA treatment effect estimator. Evaluate if each of the assumption are reasonable: 
     
     1) SUTVA: Stable Unit Treatment Value assumption 
+ 1. The SUTVA assumption requires the MPA designation outcome to not affect another outcome from a different treatment or control. 
+ 2. The SUTVA assumption requires one standard version of the treatment. 
+
+The first SUTVA assumption is violated due to spillover effects. Increase in lobster abundance due to an MPA designation invariably causes nearby non-MPA sites to also have a higher lobster abundance due the lack of a barrier stopping lobsters in MPA sites from wandering into non-MPA sites. 
+
+The second SUTVA assumption is mostly met because there is one standard version of the treatment (MPA designation). Each MPA designation has the same law and protection, however, we can't be sure they were enforced in the same way. 
+
     2) Excludability assumption
+    
+The excludability assumption requires the MPA designation to only impact the lobster abundance because it stops overfishing of lobster. 
+
+This assumption is mostly met because that is the main impact of an MPA designation - limiting over-harvesting. 
 
 ------------------------------------------------------------------------
 
